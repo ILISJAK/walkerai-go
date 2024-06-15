@@ -1,0 +1,23 @@
+# Binaries
+/bin/
+/bin/*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.log
+
+# Vendor directory
+/vendor/
+
+# Go module files
+go.sum
