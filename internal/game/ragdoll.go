@@ -71,40 +71,21 @@ func NewRagdoll() *Ragdoll {
 
 	// Initialize sticks with ellipses (major and minor radii)
 	sticks := []*Stick{
-		{0, 1, 60, 10, 8},  // Head to upper torso (neck)
-		{1, 2, 60, 10, 8},  // Upper torso to lower torso
-		{1, 3, 40, 8, 6},   // Upper torso to left upper arm
-		{3, 4, 40, 8, 6},   // Left upper arm to left lower arm
-		{1, 5, 40, 8, 6},   // Upper torso to right upper arm
-		{5, 6, 40, 8, 6},   // Right upper arm to right lower arm
-		{2, 7, 60, 10, 8},  // Lower torso to left upper leg
-		{7, 8, 40, 10, 8},  // Left upper leg to left lower leg
-		{2, 9, 60, 10, 8},  // Lower torso to right upper leg
-		{9, 10, 40, 10, 8}, // Right upper leg to right lower leg
+		{0, 1, 60, 10, 8}, // Head to upper torso (neck)
+		{1, 2, 60, 10, 8}, // Upper torso to lower torso
+		{1, 3, 40, 8, 6},  // Upper torso to left upper arm
+		{3, 4, 40, 8, 6},  // Left upper arm to left lower arm
+		{1, 5, 40, 8, 6},  // Upper torso to right upper arm
+		{5, 6, 40, 8, 6},  // Right upper arm to right lower arm
+		{2, 7, 40, 8, 6},  // Lower torso to left upper leg
+		{7, 8, 40, 8, 6},  // Left upper leg to left lower leg
+		{2, 9, 40, 8, 6},  // Lower torso to right upper leg
+		{9, 10, 40, 8, 6}, // Right upper leg to right lower leg
 	}
 
 	jointConstraints := map[int]JointConstraint{
-		// Head to upper torso (neck)
-		1: {minAngle: -0.5 * math.Pi, maxAngle: 0.5 * math.Pi},
-
-		// Upper torso to lower torso
-		2: {minAngle: -0.5 * math.Pi, maxAngle: 0.5 * math.Pi},
-
-		// Upper torso to upper arms
-		3: {minAngle: -0.5 * math.Pi, maxAngle: 0.5 * math.Pi}, // Left shoulder
-		5: {minAngle: -0.5 * math.Pi, maxAngle: 0.5 * math.Pi}, // Right shoulder
-
-		// Upper arms to lower arms
-		4: {minAngle: 0, maxAngle: math.Pi}, // Left elbow
-		6: {minAngle: 0, maxAngle: math.Pi}, // Right elbow
-
-		// Lower torso to upper legs
-		7: {minAngle: -0.5 * math.Pi, maxAngle: 0.5 * math.Pi}, // Left hip
-		9: {minAngle: -0.5 * math.Pi, maxAngle: 0.5 * math.Pi}, // Right hip
-
-		// Upper legs to lower legs
-		8:  {minAngle: 0, maxAngle: math.Pi}, // Left knee
-		10: {minAngle: 0, maxAngle: math.Pi}, // Right knee
+		1: {math.Pi / 4, 3 * math.Pi / 4}, // Neck constraint
+		// Add more constraints as necessary
 	}
 
 	return &Ragdoll{
@@ -114,101 +95,92 @@ func NewRagdoll() *Ragdoll {
 	}
 }
 
+// Exposed methods
+func (r *Ragdoll) GetPoints() []*Point {
+	return r.points
+}
+
+func (r *Ragdoll) GetSticks() []*Stick {
+	return r.sticks
+}
+
+func (r *Ragdoll) GetJointConstraints() map[int]JointConstraint {
+	return r.jointConstraints
+}
+
+func (r *Ragdoll) SetPointPosition(index int, x, y float64) {
+	if index >= 0 && index < len(r.points) {
+		r.points[index].x = x
+		r.points[index].y = y
+	}
+}
+
+func (r *Ragdoll) SetStickLength(index int, length float64) {
+	if index >= 0 && index < len(r.sticks) {
+		r.sticks[index].length = length
+	}
+}
+
 func (r *Ragdoll) Update() {
-	HandleMouseInteractions(r) // Call the mouse interaction handler
-
+	HandleMouseInteractions(r)
+	// Update points based on the previous positions
 	for _, point := range r.points {
-		// Apply gravity
-		vy := (point.y-point.oldY)*(1-0.02) + gravity*point.mass
-		vx := (point.x - point.oldX) * (1 - 0.02)
-
+		vx := (point.x - point.oldX) * 0.99 // Apply friction
+		vy := (point.y - point.oldY) * 0.99 // Apply friction
 		point.oldX = point.x
 		point.oldY = point.y
 		point.x += vx
 		point.y += vy
+		point.y += 0.5 // Gravity
+	}
 
-		// Constrain within screen bounds
-		if point.y > 600 {
-			point.y = 600
-			point.oldY = point.y + vy*-0.5
-		}
+	// Constrain the points within the screen bounds
+	for _, point := range r.points {
 		if point.x < 0 {
 			point.x = 0
-			point.oldX = point.x + vx*-0.5
+		}
+		if point.y < 0 {
+			point.y = 0
 		}
 		if point.x > 800 {
 			point.x = 800
-			point.oldX = point.x + vx*-0.5
+		}
+		if point.y > 600 {
+			point.y = 600
 		}
 	}
 
-	for i := 0; i < 5; i++ {
-		for _, stick := range r.sticks {
-			p0 := r.points[stick.p0]
-			p1 := r.points[stick.p1]
+	// Simulate the physics
+	r.SimulatePhysics()
+}
 
-			dx := p1.x - p0.x
-			dy := p1.y - p0.y
-			distance := math.Sqrt(dx*dx + dy*dy)
-			difference := stick.length - distance
-			percent := difference / distance / 2
-			offsetX := dx * percent
-			offsetY := dy * percent
+func (r *Ragdoll) SimulatePhysics() {
+	// Simulate physics for the ragdoll (similar to the existing code)
+	for _, stick := range r.sticks {
+		p0 := r.points[stick.p0]
+		p1 := r.points[stick.p1]
+		dx := p1.x - p0.x
+		dy := p1.y - p0.y
+		distance := distanceBetweenPoints(p0.x, p0.y, p1.x, p1.y)
+		difference := stick.length - distance
+		percent := difference / distance / 2
+		offsetX := dx * percent
+		offsetY := dy * percent
 
-			p0.x -= offsetX
-			p0.y -= offsetY
-			p1.x += offsetX
-			p1.y += offsetY
+		p0.x -= offsetX
+		p0.y -= offsetY
+		p1.x += offsetX
+		p1.y += offsetY
 
-			// Apply joint constraints
-			if stick.p0 != 1 && stick.p1 != 1 { // Adjust for non-root points (torso is root)
-				if constraint, ok := r.jointConstraints[stick.p0]; ok {
-					currentAngle := angleBetweenPoints(p0.x, p0.y, p1.x, p1.y)
-					clampedAngle := clampAngle(currentAngle, constraint.minAngle, constraint.maxAngle)
-					if currentAngle != clampedAngle {
-						distance := stick.length
-						p1.x = p0.x + math.Cos(clampedAngle)*distance
-						p1.y = p0.y + math.Sin(clampedAngle)*distance
-					}
-				}
-			}
-		}
-	}
-
-	// Prevent overlapping volumes
-	for i := 0; i < 3; i++ { // Multiple iterations for stable resolution
-		for _, stickA := range r.sticks {
-			for _, stickB := range r.sticks {
-				if stickA == stickB {
-					continue
-				}
-
-				p0A := r.points[stickA.p0]
-				p1A := r.points[stickA.p1]
-				p0B := r.points[stickB.p0]
-				p1B := r.points[stickB.p1]
-
-				// Check if the volumes intersect
-				centerA := Point{(p0A.x + p1A.x) / 2, (p0A.y + p1A.y) / 2, (p0A.x + p1A.x) / 2, (p0A.y + p1A.y) / 2, (p0A.mass + p1A.mass) / 2}
-				centerB := Point{(p0B.x + p1B.x) / 2, (p0B.y + p1B.y) / 2, (p0B.x + p1B.x) / 2, (p0B.y + p1B.y) / 2, (p0B.mass + p1B.mass) / 2}
-				dist := distanceBetweenPoints(centerA.x, centerA.y, centerB.x, centerB.y)
-				minDist := math.Max(stickA.radiusX, stickA.radiusY) + math.Max(stickB.radiusX, stickB.radiusY)
-
-				if dist < minDist {
-					// Move points to separate volumes
-					overlap := minDist - dist
-					moveX := overlap * (centerA.x - centerB.x) / dist / 2
-					moveY := overlap * (centerA.y - centerB.y) / dist / 2
-
-					p0A.x += moveX
-					p0A.y += moveY
-					p1A.x += moveX
-					p1A.y += moveY
-
-					p0B.x -= moveX
-					p0B.y -= moveY
-					p1B.x -= moveX
-					p1B.y -= moveY
+		// Apply joint constraints
+		if stick.p0 != 1 && stick.p1 != 1 { // Adjust for non-root points (torso is root)
+			if constraint, ok := r.jointConstraints[stick.p0]; ok {
+				currentAngle := angleBetweenPoints(p0.x, p0.y, p1.x, p1.y)
+				clampedAngle := clampAngle(currentAngle, constraint.minAngle, constraint.maxAngle)
+				if currentAngle != clampedAngle {
+					distance := stick.length
+					p1.x = p0.x + math.Cos(clampedAngle)*distance
+					p1.y = p0.y + math.Sin(clampedAngle)*distance
 				}
 			}
 		}
